@@ -1,8 +1,6 @@
 # Sample: DAPR Playground
 
-This is a platform and a set of jobs to manage and maintain our development and production environments.
-
-> Currently this is simply the infra, no job code is running yet.
+This is a playground for understanding how to develop a DAPR function.
 
 ## Setup
 
