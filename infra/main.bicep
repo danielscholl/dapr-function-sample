@@ -129,6 +129,8 @@ module registry 'br/public:avm/res/container-registry/registry:0.1.0' = {
     location: location
     enableTelemetry: configuration.telemetry
 
+    acrAdminUserEnabled: true
+
     roleAssignments: [
       {
         principalId: managedidentity.outputs.principalId
