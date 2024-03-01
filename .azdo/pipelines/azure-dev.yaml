@@ -1,32 +1,3 @@
-##########################################################################################
-#       _____                                                                            #
-#      /  _  \  Azure DevOps Deployment Pipeline                                         #
-#     /  /_\  \                                                                          #
-#    /    |    \  DEPLOY TO AZURE USING AZDO AND AZD                                     #
-#    \____|__  /                                                                         #
-#            \/                                                                          #
-#                                                                                        #
-# DESCRIPTION:                                                                           #
-#   This pipeline is designed for automated deployment in Azure using Azure DevOps       #
-#   and the Azure Developer CLI (azd). It triggers on commits pushed to the mainline     #
-#   branch (main/master) and includes steps for installing azd, authenticating with      #
-#   Azure, provisioning infrastructure, and deploying the application.                   #
-#                                                                                        #
-# PIPELINE SUMMARY:                                                                      #
-#   1. Trigger: Activates upon commits to the mainline branch.                           #
-#                                                                                        #
-# PARAMETER OPTIONS:                                                                     #
-#   - team_subscription: Azure team subscription name.                                   #
-#   - azure_location:    Azure Resource Location                                         #
-#   - env_name:          Azure Developer Environment                                     #
-#                                                                                        #
-# REQUIRED ENVIRONMENT VARIABLES:                                                        #
-#   - azure.tenantId:     The Azure Tenant Id                                            #
-#   - azure.clientId:     The Azure Application Client Id                                #
-#   - azure.clientSecret: The Azure Application Client Secret                            #
-#                                                                                        #
-##########################################################################################
-
 trigger:
   branches:
     exclude:

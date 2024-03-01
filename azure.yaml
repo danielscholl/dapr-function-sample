@@ -9,5 +9,5 @@ services:
     project: src/api
     language: csharp
     docker:
-      path: Dockerfile
+      path: Dockerfile-azd
     host: containerapp
