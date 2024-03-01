@@ -1,0 +1,12 @@
+version: '3'
+services:
+  api:
+    image: ${REGISTRY}dapr-api:latest
+    container_name: dapr-api
+    build:
+      context: api
+      dockerfile: Dockerfile
+    volumes:
+      - "..:/workspace"
+    stdin_open: true # docker run -i
+    tty: true # docker run -t

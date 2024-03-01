@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: sample
+metadata:
+  template: dapr-sample
+##  Location of source code should go here.
+services:
+  api:
+    project: src/api
+    language: csharp
+    docker:
+      path: Dockerfile
+    host: containerapp

@@ -1,0 +1,101 @@
+##########################################################################################
+#       _____                                                                            #
+#      /  _  \  Azure DevOps Deployment Pipeline                                         #
+#     /  /_\  \                                                                          #
+#    /    |    \  DEPLOY TO AZURE USING AZDO AND AZD                                     #
+#    \____|__  /                                                                         #
+#            \/                                                                          #
+#                                                                                        #
+# DESCRIPTION:                                                                           #
+#   This pipeline is designed for automated deployment in Azure using Azure DevOps       #
+#   and the Azure Developer CLI (azd). It triggers on commits pushed to the mainline     #
+#   branch (main/master) and includes steps for installing azd, authenticating with      #
+#   Azure, provisioning infrastructure, and deploying the application.                   #
+#                                                                                        #
+# PIPELINE SUMMARY:                                                                      #
+#   1. Trigger: Activates upon commits to the mainline branch.                           #
+#                                                                                        #
+# PARAMETER OPTIONS:                                                                     #
+#   - team_subscription: Azure team subscription name.                                   #
+#   - azure_location:    Azure Resource Location                                         #
+#   - env_name:          Azure Developer Environment                                     #
+#                                                                                        #
+# REQUIRED ENVIRONMENT VARIABLES:                                                        #
+#   - azure.tenantId:     The Azure Tenant Id                                            #
+#   - azure.clientId:     The Azure Application Client Id                                #
+#   - azure.clientSecret: The Azure Application Client Secret                            #
+#                                                                                        #
+##########################################################################################
+
+trigger:
+  branches:
+    exclude:
+      - '*'
+      - 
+pool:
+  vmImage: ubuntu-latest
+
+parameters:
+- name: team_subscription
+  displayName: Subscription Name
+  type: string
+
+- name: azure_location
+  displayName: Azure Client Id
+  type: string
+
+- name: environment_name
+  displayName: Environment Name
+  type: string
+  default: 'dev'
+
+variables:
+  - name: team.subscription
+    value: ${{ parameters.team_subscription }}
+  - name: azure.location
+    value: ${{ parameters.azure_location }}
+  - name: env.name
+    value: ${{ parameters.environment_name }}
+
+steps:
+  - task: setup-azd@0 
+    displayName: 'Install azd'
+
+  - task: Bash@3
+    displayName: 'Login'
+    name: azdLogin
+    env:
+      AZURE_TENANT_ID: $(azure.tenantId)
+      AZURE_CLIENT_ID: $(azure.clientId)
+      AZURE_CLIENT_SECRET: $(azure.clientSecret)
+    inputs:
+      targetType: inline
+      script: |
+        azd auth login \
+          --client-id $AZURE_CLIENT_ID \
+          --client-secret $AZURE_CLIENT_SECRET" \
+          --tenant-id $AZURE_TENANT_ID
+
+  - task: Bash@3
+    displayName: 'Provision Infrastructure'
+    name: azdProvision
+    env:
+      AZURE_SUBSCRIPTION_ID: $(team.subscription)
+      AZURE_ENV_NAME: $(env.name)
+      AZURE_LOCATION: $(azure.location)
+    inputs:
+      targetType: inline
+      script: |
+        azd provision --no-prompt
+
+  - task: Bash@3
+    displayName: 'Deploy Application'
+    name: azdProvision
+    env:
+      AZURE_SUBSCRIPTION_ID: $(team.subscription)
+      AZURE_ENV_NAME: $(env.name)
+      AZURE_LOCATION: $(azure.location)
+    inputs:
+      targetType: inline
+      script: |
+        azd deploy --no-prompt
