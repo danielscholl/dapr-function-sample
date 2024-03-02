@@ -22,8 +22,6 @@ var resourceToken = (uniqueString(subscription().id, environmentName, location))
 var resourceGroupName = '${environmentName}-${resourceName}-${resourceToken}'
 var uniqueValue = '${replace(configuration.name, '-', '')}${uniqueString(group.outputs.resourceId, configuration.name)}'
 
-var enableRedis = false
-
 @description('Configuration Object')
 var configuration = {
   name: 'sample'
@@ -149,7 +147,7 @@ module registry 'br/public:avm/res/container-registry/registry:0.1.0' = {
   }
 }
 
-module redis 'br/public:avm/res/cache/redis:0.1.1' = if(enableRedis) {
+module redis 'br/public:avm/res/cache/redis:0.1.1' = {
   name: '${configuration.name}-redis-cache'
   scope: resourceGroup(resourceGroupName)
   params: {
