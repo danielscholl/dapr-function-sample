@@ -14,18 +14,15 @@ param location string
 @description('Used to name all resources')
 param resourceName string = 'sample'
 
-@description('')
-param imageName string = 'mcr.microsoft.com/daprio/samples/dotnet-isolated-dapr-azure-function-orderservice:edge'
-
-@description('The image name for the Api service')
-param apiImage string = ''
+@description('The image name for the api service')
+param apiImageName string = ''
 
 #disable-next-line no-unused-vars
 var resourceToken = (uniqueString(subscription().id, environmentName, location))
 var resourceGroupName = '${environmentName}-${resourceName}-${resourceToken}'
 var uniqueValue = '${replace(configuration.name, '-', '')}${uniqueString(group.outputs.resourceId, configuration.name)}'
-var defaultApiImage = 'docker.io/danielscholl/dapr-api:latest'
 
+var enableRedis = false
 
 @description('Configuration Object')
 var configuration = {
@@ -67,7 +64,7 @@ module managedidentity 'br/public:avm/res/managed-identity/user-assigned-identit
   name: '${configuration.name}-user-managed-identity'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'msi-${uniqueValue}'
+    name: '${uniqueValue}-id'
     location: location
     lock: configuration.lock
     tags: configuration.tags
@@ -79,7 +76,7 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.2.1' = {
   name: '${configuration.name}-log-analytics'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'law-${uniqueValue}'
+    name: '${uniqueValue}-law'
     location: location
     lock: configuration.lock
     tags: configuration.tags
@@ -94,7 +91,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.6.6' = {
   name: '${configuration.name}-storage-account'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'sa${uniqueValue}'
+    name: '${uniqueValue}sa'
     skuName: configuration.storage.sku
     location: location
     enableTelemetry: configuration.telemetry
@@ -125,7 +122,7 @@ module registry 'br/public:avm/res/container-registry/registry:0.1.0' = {
   name: '${configuration.name}-container-registry'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'cr${uniqueValue}'
+    name: '${uniqueValue}cr'
     location: location
     enableTelemetry: configuration.telemetry
 
@@ -152,11 +149,11 @@ module registry 'br/public:avm/res/container-registry/registry:0.1.0' = {
   }
 }
 
-module redis 'br/public:avm/res/cache/redis:0.1.1' = {
+module redis 'br/public:avm/res/cache/redis:0.1.1' = if(enableRedis) {
   name: '${configuration.name}-redis-cache'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'rc-${uniqueValue}'
+    name: '${uniqueValue}-rc'
     location: location
     enableTelemetry: configuration.telemetry
     capacity: configuration.cache.capacity
@@ -188,7 +185,7 @@ module insights 'br/public:avm/res/insights/component:0.2.1' = {
   name: '${configuration.name}-insights'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'ai-${uniqueValue}'
+    name: '${uniqueValue}-ai'
     location: location
     enableTelemetry: configuration.telemetry
     kind: configuration.insights.sku
@@ -212,7 +209,7 @@ module managedEnvironment 'br/public:avm/res/app/managed-environment:0.4.3' = {
   name: '${configuration.name}-managed-env'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'mgenv-${uniqueValue}'
+    name: '${uniqueValue}-env'
     location: location
     enableTelemetry: configuration.telemetry
 
@@ -233,7 +230,7 @@ module containerApp 'br/public:avm/res/app/container-app:0.1.3' = {
   name: '${configuration.name}-container-app'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: 'sample'
+    name: '${uniqueValue}-ci'
     ingressExternal: false
     ingressAllowInsecure: false
     lock: configuration.lock
@@ -291,15 +288,16 @@ module daprComponents 'dapr-components.bicep' = {
   ]
 }
 
-module api 'api.bicep' = {
+module api './app/api.bicep' = {
   name: '${configuration.name}-api-app'
   scope: resourceGroup(resourceGroupName)
   params: {
-    prefix: configuration.name
+    name: '${uniqueValue}-ci-api'
     location: location
-    environmentId: managedEnvironment.outputs.resourceId
+    tags: union(configuration.tags, { 'azd-service-name': 'api' })
+    environmentName: managedEnvironment.outputs.name
     registryName: registry.outputs.name
-    containerImage: apiImage != '' ? apiImage : defaultApiImage
+    imageName: !empty(apiImageName) ? apiImageName : 'nginx:latest'
     managedIdentityName: managedidentity.outputs.name
   }
   dependsOn: [
@@ -308,19 +306,6 @@ module api 'api.bicep' = {
   ]
 }
 
-// module azureFunction 'function.bicep' = {
-//   name: '${configuration.name}-azure-functions'
-//   scope: resourceGroup(resourceGroupName)
-//   params:{
-//     location: location
-//     prefix: configuration.name
-//     storageAccountName: storageAccount.outputs.name
-//     appInsightsConnectionString: insights.outputs.instrumentationKey
-//     environmentId: managedEnvironment.outputs.resourceId
-//     stateStoreName: daprComponents.outputs.stateStoreName
-//     imageName: imageName
-//   }
-// }
 
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registry.outputs.loginServer
@@ -333,4 +318,4 @@ output AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID string = managedidentity.out
 output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = managedEnvironment.outputs.resourceId
 output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = managedEnvironment.outputs.defaultDomain
 
-output APP_API_BASE_URL string = api.outputs.API_URI
+output SERVICE_API_NAME string = api.outputs.SERVICE_API_NAME
