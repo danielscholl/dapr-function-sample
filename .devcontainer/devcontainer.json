@@ -9,7 +9,8 @@
             "extensions": [
                 "ms-dotnettools.csharp",
                 "ms-dotnettools.vscode-dotnet-runtime",
-				"ms-dotnettools.csdevkit"
+				"ms-dotnettools.csdevkit",
+				"humao.rest-client"
                 ]
           }
     },
@@ -20,12 +21,12 @@
 	"runArgs": ["--env-file",".devcontainer/devcontainer.env"],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [8080, 5001],
-	"portsAttributes": {
-			"8080": {
-				"protocol": "http"
-			}
-	}
+	"forwardPorts": [5036]
+	// "portsAttributes": {
+	// 		"8080": {
+	// 			"protocol": "http"
+	// 		}
+	// }
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "dotnet restore",

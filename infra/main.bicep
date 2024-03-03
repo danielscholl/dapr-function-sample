@@ -55,6 +55,12 @@ var configuration = {
       cpu: '0.25'
       memory: '0.5Gi'
       dapr: {}
+      // dapr: {
+      //   enabled: true
+      //   appId: 'api'
+      //   appProtocol: 'http'
+      //   appPort: '8080'
+      // }
     }
   ]
 }
@@ -245,6 +251,7 @@ module daprComponents 'dapr-components.bicep' = {
   }
   dependsOn: [
     containerEnvironment
+    redis
   ]
 }
 
@@ -273,11 +280,3 @@ module containerapp 'container-app.bicep' = [for service in configuration.servic
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registry.outputs.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = registry.outputs.name
-
-// output MANAGED_IDENTITY_CLIENT_ID string = managedidentity.outputs.clientId
-// output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = logAnalytics.outputs.name
-// output AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID string = managedidentity.outputs.resourceId
-
-// output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = managedEnvironment.outputs.resourceId
-// output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = managedEnvironment.outputs.defaultDomain
-
