@@ -14,8 +14,6 @@ param location string
 @description('Used to name all resources')
 param resourceName string = 'sample'
 
-@description('The image name for the api service')
-param apiImageName string = ''
 
 #disable-next-line no-unused-vars
 var resourceToken = (uniqueString(subscription().id, environmentName, location))
@@ -45,6 +43,18 @@ var configuration = {
     capacity: 1
     sku: 'Basic'
   }
+  services: [
+    {
+      name: 'hello-world'
+      cpu: '0.25'
+      memory: '0.5Gi'
+    }
+    {
+      name: 'api'
+      cpu: '0.25'
+      memory: '0.5Gi'
+    }
+  ]
 }
 
 module group 'br/public:avm/res/resources/resource-group:0.2.3' = {
@@ -62,7 +72,7 @@ module managedidentity 'br/public:avm/res/managed-identity/user-assigned-identit
   name: '${configuration.name}-user-managed-identity'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${uniqueValue}-id'
+    name: '${uniqueValue}mi'
     location: location
     lock: configuration.lock
     tags: configuration.tags
@@ -74,7 +84,7 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.2.1' = {
   name: '${configuration.name}-log-analytics'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${uniqueValue}-law'
+    name: '${uniqueValue}la'
     location: location
     lock: configuration.lock
     tags: configuration.tags
@@ -151,7 +161,7 @@ module redis 'br/public:avm/res/cache/redis:0.1.1' = {
   name: '${configuration.name}-redis-cache'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${uniqueValue}-rc'
+    name: '${uniqueValue}rc'
     location: location
     enableTelemetry: configuration.telemetry
     capacity: configuration.cache.capacity
@@ -183,7 +193,7 @@ module insights 'br/public:avm/res/insights/component:0.2.1' = {
   name: '${configuration.name}-insights'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${uniqueValue}-ai'
+    name: '${uniqueValue}ai'
     location: location
     enableTelemetry: configuration.telemetry
     kind: configuration.insights.sku
@@ -203,11 +213,11 @@ module insights 'br/public:avm/res/insights/component:0.2.1' = {
   }
 }
 
-module managedEnvironment 'br/public:avm/res/app/managed-environment:0.4.3' = {
-  name: '${configuration.name}-managed-env'
+module containerEnvironment 'br/public:avm/res/app/managed-environment:0.4.3' = {
+  name: '${configuration.name}-container-app-env'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${uniqueValue}-env'
+    name: '${uniqueValue}e'
     location: location
     enableTelemetry: configuration.telemetry
 
@@ -224,96 +234,47 @@ module managedEnvironment 'br/public:avm/res/app/managed-environment:0.4.3' = {
   }
 }
 
-module containerApp 'br/public:avm/res/app/container-app:0.1.3' = {
-  name: '${configuration.name}-container-app'
-  scope: resourceGroup(resourceGroupName)
-  params: {
-    name: '${uniqueValue}-ci'
-    ingressExternal: false
-    ingressAllowInsecure: false
-    lock: configuration.lock
-    tags: configuration.tags
-    enableTelemetry: configuration.telemetry
-
-    environmentId: managedEnvironment.outputs.resourceId
-    managedIdentities: {
-      userAssignedResourceIds: [
-        managedidentity.outputs.resourceId
-      ]
-    }
-
-    // Required parameters
-    containers: [
-      {
-        name: 'hello-world-container'
-        image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
-        resources: {
-          // workaround as 'float' values are not supported in Bicep, yet the resource providers expects them. Related issue: https://github.com/Azure/bicep/issues/1386
-          cpu: json('0.25')
-          memory: '0.5Gi'
-        }
-        probes: [
-          {
-            type: 'Liveness'
-            httpGet: {
-              path: '/health'
-              port: 8080
-              httpHeaders: [
-                {
-                  name: 'Custom-Header'
-                  value: 'Awesome'
-                }
-              ]
-            }
-            initialDelaySeconds: 3
-            periodSeconds: 3
-          }
-        ]
-      }
-    ]    
-  }
-}
-
 module daprComponents 'dapr-components.bicep' = {
   name: '${configuration.name}-dapr-components'
   scope: resourceGroup(resourceGroupName)
   params:{
-    managedEnvironmentName: managedEnvironment.outputs.name
+    managedEnvironmentName: containerEnvironment.outputs.name
     redisCacheName: redis.outputs.name
   }
   dependsOn: [
-    managedEnvironment
+    containerEnvironment
   ]
 }
 
-module api './app/api.bicep' = {
-  name: '${configuration.name}-api-app'
+module containerapp 'container-app.bicep' = [for service in configuration.services: {
+  name: 'container-${service.name}'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${uniqueValue}-ci-api'
-    location: location
-    tags: union(configuration.tags, { 'azd-service-name': 'api' })
-    environmentName: managedEnvironment.outputs.name
+    resourceName: configuration.name
+    service: {
+      name: service.name
+      cpu: service.cpu
+      memory: service.memory
+    }
+    tags: configuration.tags
+    lock: configuration.lock
+    enableTelemetry: configuration.telemetry
+    environmentName: containerEnvironment.outputs.name
     registryName: registry.outputs.name
-    imageName: !empty(apiImageName) ? apiImageName : 'nginx:latest'
-    managedIdentityName: managedidentity.outputs.name
+    identityName: managedidentity.outputs.name
   }
   dependsOn: [
-    managedEnvironment
-    registry
+    daprComponents
   ]
-}
-
-
+}]
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registry.outputs.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = registry.outputs.name
 
-output MANAGED_IDENTITY_CLIENT_ID string = managedidentity.outputs.clientId
-output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = logAnalytics.outputs.name
-output AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID string = managedidentity.outputs.resourceId
+// output MANAGED_IDENTITY_CLIENT_ID string = managedidentity.outputs.clientId
+// output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = logAnalytics.outputs.name
+// output AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID string = managedidentity.outputs.resourceId
 
-output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = managedEnvironment.outputs.resourceId
-output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = managedEnvironment.outputs.defaultDomain
+// output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = managedEnvironment.outputs.resourceId
+// output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = managedEnvironment.outputs.defaultDomain
 
-output SERVICE_API_NAME string = api.outputs.SERVICE_API_NAME
