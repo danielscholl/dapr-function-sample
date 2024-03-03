@@ -48,11 +48,13 @@ var configuration = {
       name: 'hello-world'
       cpu: '0.25'
       memory: '0.5Gi'
+      dapr: {}
     }
     {
       name: 'api'
       cpu: '0.25'
       memory: '0.5Gi'
+      dapr: {}
     }
   ]
 }
@@ -256,6 +258,7 @@ module containerapp 'container-app.bicep' = [for service in configuration.servic
       cpu: service.cpu
       memory: service.memory
     }
+    dapr: !empty(service.dapr) ? service.dapr : null
     tags: configuration.tags
     lock: configuration.lock
     enableTelemetry: configuration.telemetry
