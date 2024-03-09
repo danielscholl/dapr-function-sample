@@ -35,6 +35,7 @@ var configuration = {
   }
   storage: {
     sku: 'Standard_LRS'
+    containerName: 'daprblob'
   }
   insights: {
     sku: 'web'
@@ -131,6 +132,32 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.6.6' = {
         workspaceResourceId: logAnalytics.outputs.resourceId
       }
     ]
+
+    allowBlobPublicAccess: false
+    blobServices: {
+      containers: [
+        {
+          name: configuration.storage.containerName
+          publicAccess: 'None'
+
+        }
+      ]
+      deleteRetentionPolicyDays: 9
+      deleteRetentionPolicyEnabled: true
+      diagnosticSettings: [
+        {
+          metricCategories: [
+            {
+              category: 'AllMetrics'
+            }
+          ]
+          name: 'customSetting'
+          workspaceResourceId: logAnalytics.outputs.logAnalyticsWorkspaceId
+        }
+      ]
+      lastAccessTimeTrackingPolicyEnabled: true
+    }
+
   }
 }
 
@@ -165,37 +192,7 @@ module registry 'br/public:avm/res/container-registry/registry:0.1.0' = {
   }
 }
 
-module redis 'br/public:avm/res/cache/redis:0.1.1' = {
-  name: '${configuration.name}-redis-cache'
-  scope: resourceGroup(resourceGroupName)
-  params: {
-    name: '${uniqueValue}rc'
-    location: location
-    enableTelemetry: configuration.telemetry
-    capacity: configuration.cache.capacity
-    skuName: configuration.cache.sku
 
-    diagnosticSettings: [
-      {
-        metricCategories: [
-          {
-            category: 'AllMetrics'
-          }
-        ]
-        name: 'customSetting'
-        workspaceResourceId: logAnalytics.outputs.resourceId
-      }
-    ]
-
-    roleAssignments: [
-      {
-        roleDefinitionIdOrName: 'Redis Cache Contributor'
-        principalId: managedidentity.outputs.principalId
-        principalType: 'ServicePrincipal'
-      }
-    ]
-  }
-}
 
 module insights 'br/public:avm/res/insights/component:0.2.1' = {
   name: '${configuration.name}-insights'
@@ -225,7 +222,7 @@ module containerEnvironment 'br/public:avm/res/app/managed-environment:0.4.3' = 
   name: '${configuration.name}-container-app-env'
   scope: resourceGroup(resourceGroupName)
   params: {
-    name: '${uniqueValue}e'
+    name: '${uniqueValue}ce'
     location: location
     enableTelemetry: configuration.telemetry
 
@@ -247,11 +244,12 @@ module daprComponents 'dapr-components.bicep' = {
   scope: resourceGroup(resourceGroupName)
   params:{
     managedEnvironmentName: containerEnvironment.outputs.name
-    redisCacheName: redis.outputs.name
+    storageAccountName: storageAccount.outputs.name
+    containerName: configuration.storage.containerName
   }
   dependsOn: [
     containerEnvironment
-    redis
+    storageAccount
   ]
 }
 

@@ -1,38 +1,41 @@
-param redisCacheName string
+// param redisCacheName string
 param managedEnvironmentName string
+param storageAccountName string
+param containerName string
 
 resource environment 'Microsoft.App/managedEnvironments@2022-10-01' existing = {
   name: managedEnvironmentName
 }
 
-resource redisCache 'Microsoft.Cache/Redis@2020-06-01' existing = {
-  name: redisCacheName
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
+  name: storageAccountName
 }
 
 /* ###################################################################### */
-// Setup Dapr componet Redis state store in ACA
+// Setup Dapr componet Blob state store in ACA
 /* ###################################################################### */
 resource daprComponentStateManagement 'Microsoft.App/managedEnvironments/daprComponents@2023-05-01' = {
   parent: environment
   name: 'statestore'
   properties: {
-    componentType: 'state.redis'
+    componentType: 'state.azure.blobstorage'
     version: 'v1'
     metadata: [
       {
-        name: 'redisHost'
-        value: '${redisCacheName}.redis.cache.windows.net:6379'
+        name: 'accountName'
+        value: storageAccount.name
       }
       {
-        name: 'redisPassword'
-        value: redisCache.listKeys().primaryKey
+        name: 'accountKey'
+        value: storageAccount.listKeys().keys[0].value
+      }
+      {
+        name: 'containerName'
+        value: containerName
       }
     ]
     scopes: []
   }
-  dependsOn: [
-    redisCache
-  ]
 }
 
 output stateStoreName string = 'statestore'

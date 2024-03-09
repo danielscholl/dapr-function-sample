@@ -10,18 +10,21 @@
                 "ms-dotnettools.csharp",
                 "ms-dotnettools.vscode-dotnet-runtime",
 				"ms-dotnettools.csdevkit",
+				"ms-azuretools.azure-dev",
+                "ms-azuretools.vscode-azurefunctions",
+				"ms-azuretools.vscode-bicep",
 				"humao.rest-client"
                 ]
           }
     },
 	"features": {
-		"ghcr.io/devcontainers/features/docker-from-docker:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
 		"ghcr.io/azure/azure-dev/azd:0": {}
 	},
 	"runArgs": ["--env-file",".devcontainer/devcontainer.env"],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [5036]
+	"forwardPorts": [5036],
 	// "portsAttributes": {
 	// 		"8080": {
 	// 			"protocol": "http"
@@ -35,5 +38,8 @@
 	// "customizations": {},
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+	"remoteUser": "vscode",
+	"hostRequirements": {
+        "memory": "8gb"
+    }
 }

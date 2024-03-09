@@ -46,7 +46,7 @@ module containerApp 'br/public:avm/res/app/container-app:0.1.3' = {
   name: '${resourceName}-container-app-${service.name}'
   params: {
     name: service.name
-    ingressExternal: false
+    ingressExternal: true
     ingressAllowInsecure: false
     lock: lock
     tags: union(tags, { 'azd-service-name': service.name })
