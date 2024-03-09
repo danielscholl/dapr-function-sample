@@ -152,7 +152,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.6.6' = {
             }
           ]
           name: 'customSetting'
-          workspaceResourceId: logAnalytics.outputs.logAnalyticsWorkspaceId
+          workspaceResourceId: logAnalytics.outputs.resourceId
         }
       ]
       lastAccessTimeTrackingPolicyEnabled: true
