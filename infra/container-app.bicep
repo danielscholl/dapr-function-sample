@@ -1,11 +1,16 @@
 
-type serviceProperty = {
-  @description('The name of the service')
-  name: string
+type resourcesProperty = {
   @description('The cpu value')
   cpu: string
   @description('The memory value')
   memory: string
+}
+
+type ingressProperty = {
+  @description('Enable external ingress')
+  external: bool
+  @description('Ingress Port')
+  port: int
 }
 
 @minLength(3)
@@ -13,6 +18,7 @@ type serviceProperty = {
 @description('Used to name all resources')
 param resourceName string
 
+param name string
 param environmentName string
 param registryName string
 param identityName string
@@ -21,7 +27,12 @@ param tags object
 param enableTelemetry bool
 param lock object
 
-param service serviceProperty
+
+param resources resourcesProperty
+param ingress ingressProperty = {
+  external: false
+  port: 80
+}
 
 @description('Optional. Dapr configuration for the Container App.')
 param dapr object = {}
@@ -43,13 +54,14 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-p
 
 
 module containerApp 'br/public:avm/res/app/container-app:0.1.3' = {
-  name: '${resourceName}-container-app-${service.name}'
+  name: '${resourceName}-container-app-${name}'
   params: {
-    name: service.name
-    ingressExternal: true
+    name: name
+    ingressExternal: ingress.external
     ingressAllowInsecure: false
+    ingressTargetPort: ingress.port
     lock: lock
-    tags: union(tags, { 'azd-service-name': service.name })
+    tags: union(tags, { 'azd-service-name': name })
     enableTelemetry: enableTelemetry
 
     environmentId: containerAppsEnvironment.id
@@ -59,19 +71,13 @@ module containerApp 'br/public:avm/res/app/container-app:0.1.3' = {
       ]
     }
     secrets: {
-      secureList: [
-        {
-          name: 'registry-password'
-          value: registry.listCredentials().passwords[0].value
-        }
-      ]
+      secureList: []
     }
 
     registries: [
       {
         server: '${registry.name}.azurecr.io'
-          username: registry.name
-          passwordSecretRef: 'registry-password'
+        identity: identity.id
       }
     ] 
 
@@ -80,30 +86,30 @@ module containerApp 'br/public:avm/res/app/container-app:0.1.3' = {
     // Required parameters
     containers: [
       {
-        name: '${service.name}-container'
+        name: '${name}-container'
         image: !empty(image) ? image : 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
         resources: {
           // workaround as 'float' values are not supported in Bicep, yet the resource providers expects them. Related issue: https://github.com/Azure/bicep/issues/1386
-          cpu: json(service.cpu)
-          memory: service.memory
+          cpu: json(resources.cpu)
+          memory: resources.memory
         }
-        probes: [
-          {
-            type: 'Liveness'
-            httpGet: {
-              path: '/health'
-              port: 8080
-              httpHeaders: [
-                {
-                  name: 'Custom-Header'
-                  value: 'Awesome'
-                }
-              ]
-            }
-            initialDelaySeconds: 3
-            periodSeconds: 3
-          }
-        ]
+        // probes: [
+        //   {
+        //     type: 'Liveness'
+        //     httpGet: {
+        //       path: '/health'
+        //       port: 8080
+        //       httpHeaders: [
+        //         {
+        //           name: 'Custom-Header'
+        //           value: 'Awesome'
+        //         }
+        //       ]
+        //     }
+        //     initialDelaySeconds: 3
+        //     periodSeconds: 3
+        //   }
+        // ]
       }
     ]    
   }

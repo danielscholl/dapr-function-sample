@@ -47,22 +47,55 @@ var configuration = {
   services: [
     {
       name: 'hello-world'
-      cpu: '0.25'
-      memory: '0.5Gi'
-      dapr: {}
+      image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+      resources: {
+        cpu: '0.25'
+        memory: '0.5Gi'
+      }
+      ingress: null
+      dapr: null
     }
     {
       name: 'api'
-      cpu: '0.25'
-      memory: '0.5Gi'
-      dapr: {}
-      // dapr: {
-      //   enabled: true
-      //   appId: 'api'
-      //   appProtocol: 'http'
-      //   appPort: '8080'
-      // }
+      image: null
+      resources: {
+        cpu: '0.25'
+        memory: '0.5Gi'
+      }
+      ingress: {
+        external: true
+        port: 8080
+      }
+      dapr: null
     }
+    // {
+    //   name: 'nodeapp'
+    //   cpu: '0.25'
+    //   memory: '0.5Gi'
+    //   image: 'dapriosamples/hello-k8s-node:latest'
+    //   dapr: {}
+    // }
+    // {
+    //   name: 'api'
+    //   cpu: '0.25'
+    //   memory: '0.5Gi'
+    //   dapr: {}
+    // }
+    // {
+    //   name: 'api'
+    //   cpu: '0.25'
+    //   memory: '0.5Gi'
+    //   dapr: {
+    //     enabled: true
+    //     appId: 'app'
+    //     appProtocol: 'http'
+    //     appPort: 80
+    //     httpReadBufferSize: null
+    //     httpMaxRequestSize: null
+    //     logLevel: 'info'
+    //     enableApiLogging: false
+    //   }
+    // }
   ]
 }
 
@@ -169,8 +202,6 @@ module registry 'br/public:avm/res/container-registry/registry:0.1.0' = {
     location: location
     enableTelemetry: configuration.telemetry
 
-    acrAdminUserEnabled: true
-
     roleAssignments: [
       {
         principalId: managedidentity.outputs.principalId
@@ -258,12 +289,14 @@ module containerapp 'container-app.bicep' = [for service in configuration.servic
   scope: resourceGroup(resourceGroupName)
   params: {
     resourceName: configuration.name
-    service: {
-      name: service.name
-      cpu: service.cpu
-      memory: service.memory
-    }
+
+    name: service.name
+    image: service.image
+    resources: service.resources
+    ingress: !empty(service.ingress) ? service.ingress : null
     dapr: !empty(service.dapr) ? service.dapr : null
+    
+
     tags: configuration.tags
     lock: configuration.lock
     enableTelemetry: configuration.telemetry
@@ -273,6 +306,7 @@ module containerapp 'container-app.bicep' = [for service in configuration.servic
   }
   dependsOn: [
     daprComponents
+    containerEnvironment
   ]
 }]
 
